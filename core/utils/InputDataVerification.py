@@ -2,7 +2,7 @@ from core.utils.BotConn import BotConn, BotException
 
 
 class InputDataVerification:
-    def __init__(self, stock_exchange: str, key: str, secret: str):
+    def __init__(self, stock_exchange: str, key='', secret=''):
         self.conn = BotConn(stock_exchange, key, secret)
 
     def verify_key_secret(self) -> bool:

@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model, authenticate
 from rest_framework import serializers
 from social_auth.exceptions import AuthException
 
-from core.models import PoloniexKey, User
+from core.models import PoloniexKey, User, Profile
 
 from django.utils.translation import ugettext_lazy as _
 
@@ -33,41 +33,45 @@ class AuthTokenSerializer(serializers.Serializer):
         return attrs
 
 
+class UserProfileSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Profile
+        fields = ('id', 'phone_number',)
+
+
 class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
-    # profile = UserProfileSerializer()
+    profile = UserProfileSerializer()
 
     def create(self, validated_data):
-        # profile_data = validated_data.pop('profile')
-        # serializer = UserProfileSerializer(data=profile_data)
-        # if serializer.is_valid():
-        user = get_user_model().objects.create(email=validated_data['email'])
-        user.set_password(validated_data['password'])
-        user.save()
-        # exmo_key = ExmoKey.objects.create(user=user)
-        # exmo_key.key = "keklolarbidol"
-        # exmo_key.save()
+        profile_data = validated_data.pop('profile')
+        serializer = UserProfileSerializer(data=profile_data)
+        if serializer.is_valid():
+            user = get_user_model().objects.create(email=validated_data['email'])
+            user.set_password(validated_data['password'])
+            user.save()
 
-        # Profile.objects.create(user=user, **profile_data)
-        return user
+            Profile.objects.create(user=user, **profile_data)
+            return user
 
     def update(self, instance, validated_data):
-        # profile_data = validated_data.pop('profile')
-        # serializer = UserProfileSerializer(instance, data=profile_data)
-        # if serializer.is_valid():
-        instance.email = validated_data.get('email', instance.email)
-        instance.save()
+        profile_data = validated_data.pop('profile')
+        serializer = UserProfileSerializer(instance, data=profile_data)
+        if serializer.is_valid():
+            instance.email = validated_data.get('email', instance.email)
+            instance.save()
 
-        # profile = Profile.objects.get(user=instance)
-        # for attr, value in profile_data.items():
-        #     setattr(profile, attr, value)
-        # profile.save()
+            profile = Profile.objects.get(user=instance)
+            for attr, value in profile_data.items():
+                setattr(profile, attr, value)
+            profile.save()
 
-        return instance
+            return instance
 
     class Meta:
         model = User
-        fields = ('id', 'email', 'password',)
+        fields = ('email', 'password', 'profile')
 
 
 class PoloniexKeySerializer(serializers.ModelSerializer):

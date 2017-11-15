@@ -19,6 +19,6 @@ import core.urls
 
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
-    url(r'^api/v1/auth/', include(core.urls)),
+    url(r'^api/v1/', include(core.urls)),
     url(r'^jet/', include('jet.urls', 'jet')),
 ]

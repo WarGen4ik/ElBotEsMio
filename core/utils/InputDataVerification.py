@@ -14,7 +14,7 @@ class InputDataVerification:
 
     def verify_pair(self, pair):
         try:
-            self.conn.get_ticker(pair)
+            self.conn.get_ticker_pair(pair)
             return True
         except KeyError:
             return False

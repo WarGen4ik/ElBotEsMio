@@ -1,4 +1,6 @@
 from BotsConnections.poloniexConn import Poloniex, PoloniexError
+from core import utils
+from core.utils import calculate_time
 
 
 class BotException(Exception):
@@ -16,6 +18,7 @@ class BotConn:
         if stock_exchange == self.Poloniex:
             self.conn = Poloniex(key, secret)
 
+    ###         Публичные методы            ###
     def get_ticker(self):
         if self.stock_exchange == self.Poloniex:
             return self.conn.returnTicker()
@@ -32,14 +35,26 @@ class BotConn:
         if self.stock_exchange == self.Poloniex:
             return self.conn.returnOrderBook(pair, depth)
 
+    def get_curr_bid_price(self, pair):
+        if self.stock_exchange == self.Poloniex:
+            return float(self.get_ticker_pair(pair)['highestBid'])
+
+    def get_curr_ask_price(self, pair):
+        if self.stock_exchange == self.Poloniex:
+            return float(self.get_ticker_pair(pair)['lowestAsk'])
+
     def get_currencies(self):
         if self.stock_exchange == self.Poloniex:
             return self.conn.returnCurrencies()
 
-    def get_candle_info(self, pair: str, time=300):
+    def get_candle_info(self, pair: str, time=300, start=False):
         if self.stock_exchange == self.Poloniex:
-            return self.conn.returnChartData(pair, time)
+            if not start:
+                return self.conn.returnChartData(pair, time)
+            else:
+                return self.conn.returnChartData(pair, time, utils.calculate_time(start))
 
+    ###         Приватне методы            ###
     def get_balances(self):
         try:
             if self.stock_exchange == self.Poloniex:
@@ -50,6 +65,13 @@ class BotConn:
     def get_open_orders(self, pair='all'):
         if self.stock_exchange == self.Poloniex:
             return self.conn.returnOpenOrders(pair)
+
+    def is_any_open_order(self, pair):
+        if self.stock_exchange == self.Poloniex:
+            if self.conn.returnOpenOrders(pair):
+                return True
+            else:
+                return False
 
     def buy(self, pair: str, price: float, amount: float):
         if self.stock_exchange == self.Poloniex:
@@ -63,10 +85,9 @@ class BotConn:
         if self.stock_exchange == self.Poloniex:
             return self.conn.cancelOrder(order_id)
 
+
 # currency_1 = 'BTC'
 # currency_2 = 'USDT'
 # bot = BotConn('poloniex', 'F4AC1AI7-JAHWF8C6-0142HBVX-J3WEKLZQ', '948c0bd67c9f673e5eb6610348d8773537e3ad36c59028a36f5aea6b344bfcd3d21645869cbc46dea4f5ce766756bd2b9bf954ba8a5cbe0ec47f0be907d941fd')
-# print(bot.get_currencies())
-
-
+# print(bot.get_candle_info('USDT_BTC',300,utils.HOUR))
 

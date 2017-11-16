@@ -1,4 +1,5 @@
 from django.contrib.auth.base_user import BaseUserManager, AbstractBaseUser
+from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from fernet_fields import EncryptedCharField
 
@@ -86,6 +87,19 @@ class Profile(models.Model):
 #     pair = models.CharField(max_length=20)
 #     date = models.DateTimeField()
 #     message = models.CharField(max_length=255)
+
+
+class Strategy(models.Model):
+    user = models.ForeignKey(User)
+    name = models.CharField(max_length=50)
+    stock_exchange = models.CharField(max_length=30, blank=True)
+    currency_1 = models.CharField(max_length=30, blank=True)
+    currency_2 = models.CharField(max_length=30, blank=True)
+    stop_loss = models.FloatField(default=0)
+    profit = models.FloatField(default=0)
+    depo = models.FloatField(default=0)
+    candle_time = models.IntegerField(default=0)
+    indicators = ArrayField(ArrayField(models.CharField(max_length=255, blank=True), blank=True), blank=True)
 
 
 class KeySecret(models.Model):

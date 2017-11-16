@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model, authenticate
 from rest_framework import serializers
 from social_auth.exceptions import AuthException
 
-from core.models import PoloniexKey, User, Profile
+from core.models import PoloniexKey, User, Profile, Strategy
 
 from django.utils.translation import ugettext_lazy as _
 
@@ -93,3 +93,37 @@ class PoloniexKeySerializer(serializers.ModelSerializer):
     class Meta:
         model = PoloniexKey
         fields = ('id', 'key', 'secret')
+
+
+class StrategySerializer(serializers.ModelSerializer):
+    def create(self, validated_data):
+        strategy = Strategy.objects.create(**validated_data)
+        strategy.save()
+
+        return strategy
+
+    def update(self, instance, validated_data):
+        instance.name = validated_data.get('name', instance.name)
+        instance.stock_exchange = validated_data.get('stock_exchange', instance.stock_exchange)
+        instance.currency_1 = validated_data.get('currency_1', instance.currency_1)
+        instance.currency_2 = validated_data.get('currency_2', instance.currency_2)
+        instance.indicators = validated_data.get('indicators', instance.indicators)
+        instance.stop_loss = validated_data.get('stop_loss', instance.stop_loss)
+        instance.profit = validated_data.get('profit', instance.profit)
+        instance.depo = validated_data.get('depo', instance.depo)
+        instance.candle_time = validated_data.get('candle_time', instance.candle_time)
+        instance.save()
+
+        return instance
+
+    class Meta:
+        model = Strategy
+        # fields = ('stock_exchange', 'currency_1', 'currency_2', 'indicators', 'stop_loss', 'profit', 'depo',
+        #           'candle_time', 'user', 'name')
+        fields = '__all__'
+
+
+class StrategyListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Strategy
+        fields = ('id', 'name', )

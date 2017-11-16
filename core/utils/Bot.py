@@ -3,30 +3,31 @@ import time
 import sys
 from datetime import datetime
 
+from multiprocessing import Value
+
 from core.utils.BotConn import BotConn
-from core.utils.Indicators.MovingAverage import MovingAverage
+from core.utils.Check_indicators_signals import Check_indicators_signals
 
 
 class Bot:
-    def __init__(self, conn: BotConn, currency_1: str, currency_2: str, length_1: int, length_2: int,
-                 stop_loss: float, profit: float, depo: float, am_1: str, am_2: str, candle_time=300):
+    def __init__(self, conn: BotConn, currency_1: str, currency_2: str, stop_loss, profit, depo: float,
+                 candle_time: int, indicators: list, v: Value, user_id: int, **kwargs):
         self.conn = conn    # Коннектор
         self.currency_1 = currency_1    # Первая валюта
         self.currency_2 = currency_2    # Вторая валюта
         self.pair = currency_1 + '_' + currency_2   # Валютная пара
-        self.length_1 = length_1    # Длинна первой плавающей средней
-        self.length_2 = length_2    # Длинна второй плавающей средней
         self.candle_time = candle_time  # Длительность свечи
         self.depo = depo    # Сумма для торгов
-        self.am_1 = am_1    # Первый метод плавающей средней
-        self.am_2 = am_2    # Второй метод плавающей средней
+        self.check_indicators = Check_indicators_signals(indicators)
+        self.user_id = user_id
+        self.is_stop = v
 
         if profit:
             self.profit = profit / 100    # Профит (%)
         if stop_loss:
             self.stop_loss = stop_loss / 100  # Стоп-луз (%)
 
-    def start(self, **kwargs):
+    def start(self):
         is_buying = False   # Покупаем ли мы валюту
         is_selling = False  # Продаем ли мы валюту
         is_sold = False   # Продана ли валюта
@@ -37,7 +38,7 @@ class Bot:
         profit = sys.float_info.max         # Профит (float)
         prev_time = 0                       # Переменная для хранения временной точки
 
-        while True:
+        while self.is_stop.value:
             curr_time = int(time.time())
 
             # Если прошло candle_time времени
@@ -121,6 +122,7 @@ class Bot:
 
             # Ждем отведенное время
             time.sleep(3)
+            print('sleep')
 
 
 # key = 'F4AC1AI7-JAHWF8C6-0142HBVX-J3WEKLZQ'
@@ -129,14 +131,14 @@ class Bot:
 # bot.start()
 
 
-# def bot_start(v, user, stock_exchange, pair, msg, **kwargs):
-#     import bot.settings
-#     import django
-#     import os
-#     os.environ.setdefault("DJANGO_SETTINGS_MODULE", os.path.join(bot.settings.BASE_DIR, 'bot', 'settings'))
-#     django.setup()
-#     from core.models import Logs
-#     # while v.value:
-#     #     print('hello' + str(name))
-#     #     time.sleep(3)
-#     Logs.objects.create(user=user, stock_exchange=stock_exchange, pair=pair, date=datetime.now(), message=msg)
+def bot_start(kwargs):
+
+    conn = BotConn(kwargs['stock_exchange'], kwargs['key'], kwargs['secret'])
+    for indicator in kwargs['indicators']:
+        indicator['pair'] = '{}_{}'.format(kwargs['currency_1'], kwargs['currency_2'])
+        indicator['candle_time'] = kwargs['candle_time']
+        indicator['conn'] = conn
+
+    bot = Bot(conn=conn, **kwargs)
+
+    bot.start()

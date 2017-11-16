@@ -108,16 +108,16 @@ class BotConn:
             source = self.conn.query('getcurrencies')  # все валюты с биттрекса без форматирования
             result = {}  # сюда пишутся словари с данными для каждой валюты
 
-            for curency in source:  # приходиь list в которов один dict. переборєлементов этого dict
-                result[curency['Currency']] = dict()
-                result[curency['Currency']]['name'] = curency['CurrencyLong']
-                result[curency['Currency']]['txFee'] = curency['TxFee']
-                result[curency['Currency']]['minConf'] = curency['MinConfirmation']
+            for currency in source:  # приходиь list в которов один dict. переборєлементов этого dict
+                result[currency['Currency']] = dict()
+                result[currency['Currency']]['name'] = currency['CurrencyLong']
+                result[currency['Currency']]['txFee'] = currency['TxFee']
+                result[currency['Currency']]['minConf'] = currency['MinConfirmation']
 
-                if curency['IsActive'] is True:
-                    result[curency['Currency']]['frozen'] = 0
-                elif curency['IsActive'] is True:
-                    result[curency['Currency']]['frozen'] = 1
+                if currency['IsActive'] is True:
+                    result[currency['Currency']]['frozen'] = 0
+                elif currency['IsActive'] is True:
+                    result[currency['Currency']]['frozen'] = 1
             return result
         elif self.stock_exchange == self.Bitfinex:  # возвращает только txFee для всех валют
             res = self.conn1.account_fees()
@@ -249,11 +249,5 @@ class BotConn:
 
 
 if __name__ == '__main__':
-    # test----------------------------------------------------------------
-
-    # currency_1 = 'BTC'
-    # currency_2 = 'USDT'
-    pair = 'USDT_BTC'
-
-    s = InputDataVerification('poloniex')
-    print(s.verify_pair(pair))
+    p = BotConn('poloniex')
+    print(p.get_currencies())

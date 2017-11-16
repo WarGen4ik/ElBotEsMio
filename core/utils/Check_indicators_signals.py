@@ -3,9 +3,26 @@ from core.utils.Indicators_signal.MACD_signal import MACD_signal
 from core.utils.Indicators_signal.MA_signal import MA_signal
 from core.utils.Indicators_signal.RSI_signal import RSI_signal
 
+MovingAverage_types = ['sma', 'ema', 'smma', 'lwma']
+
 
 class Check_indicators_signals:
-    def __init__(self, ma=None, ma_args=None, rsi=None, rsi_args=None, macd=None, macd_args=None):
+    def __init__(self, indicator_args: list):
+        ma = rsi = macd = None
+        ma_args = rsi_args = macd_args = None
+
+        for indicator in indicator_args:
+            if indicator['name'] in MovingAverage_types:
+                ma = True
+                indicator['ma_1'] = indicator['ma_2'] = indicator.pop('name')
+                ma_args = indicator
+            elif indicator['name'] == 'rsi':
+                rsi = True
+                rsi_args = indicator
+            elif indicator['name'] == 'macd':
+                macd = True
+                macd_args = indicator
+
         self.methods = list()
         if ma:
             self.methods.append(MA_signal(**ma_args))

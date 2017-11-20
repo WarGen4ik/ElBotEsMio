@@ -12,10 +12,9 @@ class MA_signal:
         self.kwargs_1['length'] = length_1
         self.kwargs_2['length'] = length_2
 
-    @property
-    def is_signal_to_sell(self):
-        avg_1 = self.method(**self.kwargs_1)
-        avg_2 = self.method(**self.kwargs_2)
+    def is_signal_to_sell(self, price_list=list()):
+        avg_1 = self.method(price_list=price_list, **self.kwargs_1)
+        avg_2 = self.method(price_list=price_list, **self.kwargs_2)
 
         if avg_1 > avg_2:
             self.is_under = False

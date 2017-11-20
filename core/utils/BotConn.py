@@ -6,6 +6,7 @@ import datetime
 import time as t
 
 # for bittrex candles
+from core import utils
 
 PROTECTION_PUB = 'pub'  # public methods
 API_V2_0 = 'v2.0'
@@ -37,6 +38,8 @@ class BotConn:
     def get_ticker(self):
         if self.stock_exchange == self.Poloniex:
             return self.conn.returnTicker()
+        elif self.stock_exchange == self.Bitfinex:
+            return self.publ_conn.ticker()
 
     # done bittr bitf
     def get_ticker_pair(self, pair):
@@ -52,7 +55,7 @@ class BotConn:
                 return {'last': formt['Bid'], 'lowestAsk': formt['Ask'], 'highestBid': formt['Last']}
             elif self.stock_exchange == self.Bitfinex:
                 pair = 't' + pair.replace('_', '')
-                res = self.publ_conn.ticker(
+                res = self.publ_conn.ticker_pair(
                     pair)  # предположительно BID, BID_SIZE, ASK, ASK_SIZE, DAILY_CHANGE, DAILY_CHANGE_PERK, LAST_PRICE, VOLUME, HIGH, LOW
                 result = {'last': res[6], 'lowestAsk': res[2], 'highestBid': res[0]}
                 return result
@@ -93,12 +96,10 @@ class BotConn:
             raise BotException(str(ex))
 
     def get_curr_bid_price(self, pair):
-        if self.stock_exchange == self.Poloniex:
-            return float(self.get_ticker_pair(pair)['highestBid'])
+        return float(self.get_ticker_pair(pair)['highestBid'])
 
     def get_curr_ask_price(self, pair):
-        if self.stock_exchange == self.Poloniex:
-            return float(self.get_ticker_pair(pair)['lowestAsk'])
+        return float(self.get_ticker_pair(pair)['lowestAsk'])
 
     # done bittr bitf
     def get_currencies(self):
@@ -120,17 +121,27 @@ class BotConn:
                     result[currency['Currency']]['frozen'] = 1
             return result
         elif self.stock_exchange == self.Bitfinex:  # возвращает только txFee для всех валют
-            res = self.conn1.account_fees()
-            result = {}
-            for key in res['withdraw']:
-                result[key] = {'txFee': res['withdraw'][key]}
+            # res = self.conn1.account_fees()
+            # result = {}
+            # for key in res['withdraw']:
+            #     result[key] = {'txFee': res['withdraw'][key]}
+            # return result
+            res = self.publ_conn.symbols()
+            result = []
+            for i in res:
+                x = i[:3].upper()
+                y = i[3:].upper()
+                if x not in result:
+                    result.append(x)
+                if y not in result:
+                    result.append(y)
             return result
 
     # done bittrex bitfinex
-    def get_candle_info(self, pair: str, time=300):
+    def get_candle_info(self, pair: str, time=300, start=utils.DAY):
         try:
             if self.stock_exchange == self.Poloniex:
-                return self.conn.returnChartData(pair, time)
+                return self.conn.returnChartData(pair, time, start)
             elif self.stock_exchange == self.Bittrex:
                 # в битрексе есть еще oneMin, hour
                 # биттрекс не возвращает аналога weightedAverage, как в полониксе
@@ -249,5 +260,5 @@ class BotConn:
 
 
 if __name__ == '__main__':
-    p = BotConn('poloniex')
-    print(p.get_currencies())
+    p = BotConn('bitfinex')
+    print(p.get_ticker())

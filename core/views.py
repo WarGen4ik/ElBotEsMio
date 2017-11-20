@@ -9,15 +9,16 @@ from rest_framework.permissions import AllowAny
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from social_auth.exceptions import AuthException
 
 from bot import settings
 from core.models import PoloniexKey, Strategy
 from core.serializers import AuthTokenSerializer, UserSerializer, PoloniexKeySerializer, StrategySerializer, \
-    StrategyListSerializer
+    StrategyListSerializer, AuthException
 from BotsConnections.poloniexConn import Poloniex, PoloniexError
-from core.utils import perform_indicators_to_str, perform_str_to_indicator
+from core.utils import perform_indicators_to_str, perform_str_to_indicator, get_stock_exchange_params
 from core.utils.Bot import bot_start
+from core.utils.BotConn import BotConn
+from core.utils.InputDataVerification import InputDataVerification
 
 
 class CustomObtainAuthToken(APIView):
@@ -38,7 +39,7 @@ class CustomObtainAuthToken(APIView):
             return Response({'token': token.key,
                              'user_id': user.id, })
         except AuthException as e:
-            return Response({'msg': str(e)})
+            return Response({'msg': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class CreateUserViewSet(CreateAPIView):
@@ -58,6 +59,11 @@ class CreateUserViewSet(CreateAPIView):
             return Response({"msg": "Пароли не совпадают"}, status=status.HTTP_400_BAD_REQUEST)
 
 
+class CheckUserAuth(APIView):
+    def post(self, request):
+        return Response(status=status.HTTP_200_OK)
+
+
 class CreateUserPoloniexKey(CreateAPIView):
     model = PoloniexKey
     permission_classes = (AllowAny,)
@@ -66,7 +72,12 @@ class CreateUserPoloniexKey(CreateAPIView):
 
     def create(self, request, *args, **kwargs):
         if self.verificate(request)['result']:
-            return super(CreateAPIView, self).create(request, *args, **kwargs)
+            request.data['user'] = request.user.id
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            self.perform_create(serializer)
+            headers = self.get_success_headers(serializer.data)
+            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
@@ -78,12 +89,13 @@ class CreateUserPoloniexKey(CreateAPIView):
             get_object_or_404(PoloniexKey, key=key, secret=secret)
             return {'error': 'This key and secret are already in use', 'result': False}
         except Http404:
-            conn = Poloniex(key, secret)
-            try:
-                conn.returnBalances()
-                return {'result': True}
-            except PoloniexError:
-                return {'error': 'Your key and/or secret are not usable', 'result': False}
+            verify = InputDataVerification('poloniex', key, secret)
+
+            ret = {'result': verify.verify_key_secret()}
+            if not ret['result']:
+                ret['error'] = 'Your key and/or secret are not working'
+
+            return ret
 
 
 class GetMovingAverage(APIView):
@@ -112,6 +124,12 @@ class BotStart(APIView):
             settings.bots[request.user.id][request.data['stock_exchange']] = dict()
 
         pair = request.data['currency_1'] + '_' + request.data['currency_2']
+
+        try:
+            if settings.bots[request.user.id][request.data['stock_exchange']][pair]['stop'] is True:
+                return Response({'msg': 'Bot is working now'}, status=status.HTTP_400_BAD_REQUEST)
+        except KeyError:
+            pass
         settings.bots[request.user.id][request.data['stock_exchange']][pair] = {'stop': v, 'id': pid}
 
         return Response({}, status=status.HTTP_200_OK)
@@ -137,11 +155,14 @@ class BotCreate(CreateAPIView):
     def create(self, request, *args, **kwargs):
         request.data['user'] = request.user.id
         request.data['indicators'] = [[], ]
+        request.data['isStrategy'] = True
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        serializer.data['message'] = 'Bot has been created'
+        return Response(serializer.data,
+                        status=status.HTTP_201_CREATED, headers=headers)
 
 
 class BotGetAll(ListAPIView):
@@ -158,12 +179,13 @@ class BotRetrieveUpdateDelete(RetrieveUpdateDestroyAPIView):
     queryset = Strategy.objects.all()
     serializer_class = StrategySerializer
     renderer_classes = (JSONRenderer,)
-    lookup_field = 'name'
+    lookup_field = 'pk'
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
+        pk = instance.pk
         instance.delete()
-        return Response({"name": instance.name, "deleted": True}, status=status.HTTP_200_OK)
+        return Response({"id": pk, "deleted": True}, status=status.HTTP_200_OK)
 
     def update(self, request, *args, **kwargs):
         request.data['user'] = request.user.id
@@ -180,5 +202,13 @@ class BotRetrieveUpdateDelete(RetrieveUpdateDestroyAPIView):
         serializer = self.get_serializer(instance)
         data = dict(serializer.data.copy())
         data['indicators'] = perform_str_to_indicator(data['indicators'])
+        if data['stock_exchange'] != '':
+            data.update(get_stock_exchange_params(data['stock_exchange'], BotConn(data['stock_exchange'])))
         return Response(data)
 
+
+class GetStockExchangeParams(APIView):
+    def post(self, request):
+        return Response(get_stock_exchange_params(request.data['stock_exchange'],
+                                                  BotConn(request.data['stock_exchange'])),
+                        status=status.HTTP_200_OK)

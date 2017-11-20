@@ -1,10 +1,11 @@
 from django.contrib.auth import get_user_model, authenticate
 from rest_framework import serializers
-from social_auth.exceptions import AuthException
-
 from core.models import PoloniexKey, User, Profile, Strategy
-
 from django.utils.translation import ugettext_lazy as _
+
+
+class AuthException(Exception):
+    pass
 
 
 class AuthTokenSerializer(serializers.Serializer):
@@ -20,13 +21,13 @@ class AuthTokenSerializer(serializers.Serializer):
 
             if user:
                 if not user.is_active:
-                    msg = _('Данный юзер отключен')
+                    msg = 'Данный юзер отключен'
                     raise AuthException(msg)
             else:
-                msg = _('Неверный логин и/или пароль.')
+                msg = 'Неверный логин и/или пароль.'
                 raise AuthException(msg)
         else:
-            msg = _('Must include "email" and "password".')
+            msg = 'Must include "email" and "password".'
             raise AuthException(msg)
 
         attrs['user'] = user
@@ -92,7 +93,7 @@ class PoloniexKeySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PoloniexKey
-        fields = ('id', 'key', 'secret')
+        fields = ('id', 'key', 'secret', 'user')
 
 
 class StrategySerializer(serializers.ModelSerializer):
@@ -118,8 +119,6 @@ class StrategySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Strategy
-        # fields = ('stock_exchange', 'currency_1', 'currency_2', 'indicators', 'stop_loss', 'profit', 'depo',
-        #           'candle_time', 'user', 'name')
         fields = '__all__'
 
 

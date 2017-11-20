@@ -34,9 +34,7 @@ class MovingAverage:
         return ret_list
 
     def calculate_sma(self, length: int, price_list=list()):
-        if price_list:
-            pass
-        else:
+        if not price_list:
             price_list = self.conn.get_candle_info(self.pair, self.candle_time, self.time_stamp)
 
         n = len(price_list)

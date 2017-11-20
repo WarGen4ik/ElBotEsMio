@@ -132,14 +132,29 @@ class PublicV1:
         res = self._get('v1/trades/{}'.format(symbol))
         return res.json()
 
+
 class PublicV2:
     base_url = "https://api.bitfinex.com/"
 
     def _get(self, path, *args, **kwargs):
         return requests.get(self.base_url + path, kwargs)
 
+    def ticker(self):
+        res = self._get('v2/tickers')
+        return res.json()
+
+    def symbols(self):
+        """
+        A list of symbol names
+
+        Returns
+        -------
+        """
+        res = self._get('v1/symbols')
+        return res.json()
+
     #done
-    def ticker(self, symbol='tBTCUSD'):
+    def ticker_pair(self, symbol='tBTCUSD'):
         res = self._get('v2/ticker/{}'.format(symbol))
         return res.json()
 

@@ -16,32 +16,36 @@ class Check_indicators_signals:
                 ma = True
                 indicator['ma_1'] = indicator['ma_2'] = indicator.pop('name')
                 ma_args = indicator
+                ma_args.update(ma_args.pop('args'))
             elif indicator['name'] == 'rsi':
                 rsi = True
                 rsi_args = indicator
+                rsi_args.update(rsi_args.pop('args'))
             elif indicator['name'] == 'macd':
                 macd = True
                 macd_args = indicator
+                macd_args.update(macd_args.pop('args'))
 
-        self.methods = list()
-        if ma:
-            self.methods.append(MA_signal(**ma_args))
-        if rsi:
-            self.methods.append(RSI_signal(**rsi_args))
-        if macd:
-            self.methods.append(MACD_signal(**macd_args))
+        try:
+            self.methods = list()
+            if ma:
+                self.methods.append(MA_signal(**ma_args))
+            if rsi:
+                self.methods.append(RSI_signal(**rsi_args))
+            if macd:
+                self.methods.append(MACD_signal(**macd_args))
+        except TypeError:
+            print(ma_args)
 
-    @property
-    def check_sell(self):
+    def check_sell(self, price_list):
         for method in self.methods:
-            if method.is_signal_to_sell is not True:
+            if method.is_signal_to_sell(price_list) is not True:
                 return False
         return True
 
-    @property
-    def check_buy(self):
+    def check_buy(self, price_list):
         for method in self.methods:
-            if method.is_signal_to_sell is not False:
+            if method.is_signal_to_sell(price_list) is not False:
                 return False
         return True
 

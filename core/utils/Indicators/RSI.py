@@ -10,8 +10,9 @@ class RSI:
         self.pair = pair
         self.time_stamp = time_stamp
 
-    def calculate_rsi(self, length=14):
-        price_list = self.conn.get_candle_info(self.pair, self.candle_time)
+    def calculate_rsi(self, length=14, price_list=list()):
+        if not price_list:
+            price_list = self.conn.get_candle_info(self.pair, self.candle_time)
 
         cu_list = list()
         cd_list = list()
@@ -30,8 +31,9 @@ class RSI:
 
         return 100 - (100 / (1 + rs))
 
-    def calculate_rsi_list(self, length):
-        price_list = self.conn.get_candle_info(self.pair, self.candle_time)
+    def calculate_rsi_list(self, length, price_list=list()):
+        if not price_list:
+            price_list = self.conn.get_candle_info(self.pair, self.candle_time)
 
         ret_list = list()
 

@@ -10,9 +10,8 @@ class RSI_signal:
         self.value_1 = value_1
         self.value_2 = value_2
 
-    @property
-    def is_signal_to_sell(self):
-        rsi_value = self.rsi.calculate_rsi(self.length)
+    def is_signal_to_sell(self, price_list=list()):
+        rsi_value = self.rsi.calculate_rsi(self.length, price_list)
         print(rsi_value)
 
         if rsi_value < self.value_1:

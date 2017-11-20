@@ -13,8 +13,8 @@ class MACD_signal:
                          length_3=length_3, time_stamp=utils.DAY * 12)
 
     @property
-    def is_signal_to_sell(self):
-        macd_values = self.macd.calculate_list()
+    def is_signal_to_sell(self, price_list=list()):
+        macd_values = self.macd.calculate_list(price_list)
 
         pprint(macd_values)
         print('{}   {}'.format(macd_values['signal'][-1], macd_values['macd'][-1]))

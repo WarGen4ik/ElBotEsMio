@@ -100,18 +100,18 @@ class Strategy(models.Model):
     depo = models.FloatField(default=0)
     candle_time = models.IntegerField(default=0)
     indicators = ArrayField(ArrayField(models.CharField(max_length=255, blank=True), blank=True), blank=True)
+    isStrategy = models.BooleanField()
+
+    def __str__(self):
+        return self.name
 
 
 class KeySecret(models.Model):
-    user = models.OneToOneField(User, primary_key=True)
-    key = EncryptedCharField(blank=True, max_length=255)
-    secret = EncryptedCharField(blank=True, max_length=255)
+    key = models.CharField(max_length=255)
+    secret = models.CharField(max_length=255)
 
     class Meta:
         abstract = True
-
-    def __str__(self):
-        return str(self.user)
 
 
 # class ExmoKey(KeySecret):
@@ -119,4 +119,8 @@ class KeySecret(models.Model):
 
 
 class PoloniexKey(KeySecret):
+    user = models.ForeignKey(User)
     pass
+
+    def __str__(self):
+        return str(self.user)

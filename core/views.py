@@ -9,6 +9,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView
+import pyotp
 
 from bot import settings
 from core.models import PoloniexKey, Strategy
@@ -33,13 +34,36 @@ class CustomObtainAuthToken(APIView):
             serializer = self.serializer_class(data=request.data)
             serializer.is_valid(raise_exception=True)
             user = serializer.validated_data['user']
-            # profile = Profile.objects.get(user=user)
+
+            if user.profile.two_factor_auth:
+                return Response({'status': '2-fa'}, status=status.HTTP_200_OK)
+
             token, created = Token.objects.get_or_create(user=user)
 
             return Response({'token': token.key,
                              'user_id': user.id, })
         except AuthException as e:
             return Response({'msg': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class Confirm2FA(APIView):
+    throttle_classes = ()
+    permission_classes = (AllowAny,)
+    parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
+    renderer_classes = (renderers.JSONRenderer,)
+    serializer_class = AuthTokenSerializer
+
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data['user']
+        auth = pyotp.TOTP(user.profile.base_32)
+        if auth.verify(request['code']):
+            token, created = Token.objects.get_or_create(user=user)
+            return Response({'token': token.key,
+                             'user_id': user.id, })
+
+        return Response({'error': 'code is not valid'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class CreateUserViewSet(CreateAPIView):
@@ -98,13 +122,6 @@ class CreateUserPoloniexKey(CreateAPIView):
             return ret
 
 
-class GetMovingAverage(APIView):
-    permission_classes = (AllowAny,)
-
-    def post(self, request):
-        pass
-
-
 class BotStart(APIView):
     def post(self, request):
         v = Value('b', True)
@@ -155,7 +172,6 @@ class BotCreate(CreateAPIView):
     def create(self, request, *args, **kwargs):
         request.data['user'] = request.user.id
         request.data['indicators'] = [[], ]
-        request.data['isStrategy'] = True
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
@@ -171,7 +187,16 @@ class BotGetAll(ListAPIView):
     renderer_classes = (JSONRenderer, )
 
     def get_queryset(self):
-        return Strategy.objects.filter(user=self.request.user)
+        return Strategy.objects.filter(user=self.request.user, isStrategy=False)
+
+
+class StrategiesGetAll(ListAPIView):
+    model = Strategy
+    serializer_class = StrategyListSerializer
+    renderer_classes = (JSONRenderer, )
+
+    def get_queryset(self):
+        return Strategy.objects.filter(user=self.request.user, isStrategy=True)
 
 
 class BotRetrieveUpdateDelete(RetrieveUpdateDestroyAPIView):
@@ -189,7 +214,10 @@ class BotRetrieveUpdateDelete(RetrieveUpdateDestroyAPIView):
 
     def update(self, request, *args, **kwargs):
         request.data['user'] = request.user.id
-        request.data['indicators'] = perform_indicators_to_str(request.data['indicators'])
+        try:
+            request.data['indicators'] = perform_indicators_to_str(request.data['indicators'])
+        except KeyError:
+            pass
 
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data)
@@ -204,7 +232,9 @@ class BotRetrieveUpdateDelete(RetrieveUpdateDestroyAPIView):
         data['indicators'] = perform_str_to_indicator(data['indicators'])
         if data['stock_exchange'] != '':
             data.update(get_stock_exchange_params(data['stock_exchange'], BotConn(data['stock_exchange'])))
-        return Response(data)
+
+        data['isBotWorking'] = False
+        return Response(data, status=status.HTTP_200_OK)
 
 
 class GetStockExchangeParams(APIView):
@@ -212,3 +242,31 @@ class GetStockExchangeParams(APIView):
         return Response(get_stock_exchange_params(request.data['stock_exchange'],
                                                   BotConn(request.data['stock_exchange'])),
                         status=status.HTTP_200_OK)
+
+
+class Get2FAQR(APIView):
+    def post(self, request):
+        base_32 = pyotp.random_base32()
+        otp_path = pyotp.totp.TOTP(base_32).provisioning_uri(request.user.email, issuer_name="El bot es mio")
+        return Response({'qr_code': otp_path, 'base_32': base_32}, status=status.HTTP_200_OK)
+
+
+class Enable2FA(APIView):
+    def post(self, request):
+        auth = pyotp.totp.TOTP(settings.SECRET_KEY)
+        if auth.verify(request.data['code']) and request.user.check_password(request.data['password']):
+            request.user.profile.two_factor_auth = True
+            request.user.profile.base_32 = request.data['base_32']
+            request.user.profile.save()
+            return Response({"status": True}, status=status.HTTP_200_OK)
+        return Response({"status": False}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class Disable2FA(APIView):
+    def post(self, request):
+        auth = pyotp.totp.TOTP(settings.SECRET_KEY)
+        if auth.verify(request.data['code']) and request.user.check_password(request.data['password']):
+            request.user.profile.two_factor_auth = False
+            request.user.profile.save()
+            return Response({"status": True}, status=status.HTTP_200_OK)
+        return Response({"status": False}, status=status.HTTP_400_BAD_REQUEST)

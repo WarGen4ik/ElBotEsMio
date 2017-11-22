@@ -16,6 +16,9 @@ def perform_indicators_to_str(indicators):
     ret_list = list()
     str_args = str()
     for indicator in indicators:
+        if indicator['indicator_name'] == 'rsi' or indicator['indicator_name'] == 'macd':
+            indicator['name'] = indicator.pop('indicator_name')
+
         for arg in indicator['args']:
             str_args += '{}={}'.format(arg, str(indicator['args'][arg])) + ','
 
@@ -33,7 +36,11 @@ def perform_str_to_indicator(indicators):
             args_dict = dict()
             for arg in args_str:
                 args_dict[arg.split('=')[0]] = float(arg.split('=')[1])
-            ret_list.append({'name': indicator[0], 'args': args_dict})
+
+            if indicator[0] == 'rsi' or indicator[0] == 'macd':
+                ret_list.append({'indicator_name': indicator[0], 'args': args_dict})
+            else:
+                ret_list.append({'indicator_name': 'ma', 'name': indicator[0], 'args': args_dict})
     except IndexError:
         ret_list = []
 

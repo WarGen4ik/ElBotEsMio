@@ -80,6 +80,8 @@ class User(AbstractBaseUser):
 class Profile(models.Model):
     user = models.OneToOneField(User)
     phone_number = models.CharField(max_length=30)
+    two_factor_auth = models.BooleanField(default=False)
+    base_32 = models.CharField(max_length=63, default='')
 #
 # class Logs(models.Model):
 #     user = models.ForeignKey(User)
@@ -100,7 +102,7 @@ class Strategy(models.Model):
     depo = models.FloatField(default=0)
     candle_time = models.IntegerField(default=0)
     indicators = ArrayField(ArrayField(models.CharField(max_length=255, blank=True), blank=True), blank=True)
-    isStrategy = models.BooleanField()
+    isStrategy = models.BooleanField()  # True - strategy, False - bot
 
     def __str__(self):
         return self.name
@@ -112,10 +114,6 @@ class KeySecret(models.Model):
 
     class Meta:
         abstract = True
-
-
-# class ExmoKey(KeySecret):
-#     pass
 
 
 class PoloniexKey(KeySecret):

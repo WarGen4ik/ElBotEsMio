@@ -1,6 +1,5 @@
 from pprint import pprint
-
-from core import utils
+from core.utils import candle_times
 from core.utils.BotConn import BotConn
 from core.utils.Indicators.MACD import MACD
 
@@ -10,7 +9,7 @@ class MACD_signal:
         self.conn = conn
         self.candle_time = candle_time
         self.macd = MACD(conn=conn, candle_time=candle_time, pair=pair, length_1=length_1, length_2=length_2,
-                         length_3=length_3, time_stamp=utils.DAY * 12)
+                         length_3=length_3, time_stamp=candle_times.DAY * 12)
 
     @property
     def is_signal_to_sell(self, price_list=list()):

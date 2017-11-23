@@ -6,7 +6,7 @@ import datetime
 import time as t
 
 # for bittrex candles
-from core import utils
+from core.utils import candle_times
 
 PROTECTION_PUB = 'pub'  # public methods
 API_V2_0 = 'v2.0'
@@ -50,7 +50,7 @@ class BotConn:
                 # форматирование вывода под вид полоникса
                 formt = self.conn.query('getticker', {'market': pair.replace('_', '-')})
                 if formt == 'INVALID_MARKET':
-                    raise KeyError()
+                    raise BittrexError('INVALID_MARKET')
 
                 return {'last': formt['Bid'], 'lowestAsk': formt['Ask'], 'highestBid': formt['Last']}
             elif self.stock_exchange == self.Bitfinex:
@@ -62,6 +62,8 @@ class BotConn:
 
         except (PoloniexError, BittrexError, BitfinexError) as ex:
             raise BotException(str(ex))
+        except IndexError as ex:
+            raise BotException('INVALID_MARKET')
 
     # skip
     def get_24h_volume(self):
@@ -138,7 +140,7 @@ class BotConn:
             return result
 
     # done bittrex bitfinex
-    def get_candle_info(self, pair: str, time=300, start=utils.DAY):
+    def get_candle_info(self, pair: str, time=300, start=candle_times.DAY):
         try:
             if self.stock_exchange == self.Poloniex:
                 return self.conn.returnChartData(pair, time, start)
@@ -200,6 +202,18 @@ class BotConn:
         except (PoloniexError, BittrexError, BitfinexError) as ex:
             raise BotException(str(ex))
 
+    def get_balance(self, currency: str):
+        try:
+            if self.stock_exchange == self.Poloniex:
+                return self.conn.returnBalances()[currency]
+            elif self.stock_exchange == self.Bittrex:
+                return self.conn.query('getbalances')[currency]
+            elif self.stock_exchange == self.Bitfinex:
+                return self.conn1.balances()[currency]
+        except (PoloniexError, BittrexError, BitfinexError) as ex:
+            raise BotException(str(ex))
+
+
     # bittrex_trouble, bitfinex done?
     def get_open_orders(self, pair='all'):
         try:
@@ -260,5 +274,5 @@ class BotConn:
 
 
 if __name__ == '__main__':
-    p = BotConn('bitfinex')
-    print(p.get_ticker())
+    p = BotConn('bitfinex', 'F4AC1AI7-JAHWF8C6-0142HBVX-J3WEKLZQ', '948c0bd67c9f673e5eb6610348d8773537e3ad36c59028a36f5aea6b344bfcd3d21645869cbc46dea4f5ce766756bd2b9bf954ba8a5cbe0ec47f0be907d941fd')
+    print(p.get_ticker_pair('BTC_USD'))

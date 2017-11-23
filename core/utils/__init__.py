@@ -1,10 +1,8 @@
 import time
 from pymongo import MongoClient
 
-
-MINUTE, HOUR, DAY = 60, 60 * 60, 60 * 60 * 24
-WEEK, MONTH, YEAR = DAY * 7, DAY * 30, DAY * 365
-FIVE_MIN, FIFTEEN_MIN, THIRTY_MIN = MINUTE * 5, MINUTE * 15, MINUTE * 30
+from core.models import PoloniexKey
+from core.utils.BotConn import BotConn
 
 
 def calculate_time(time_stamp: int):
@@ -73,3 +71,15 @@ def get_stock_exchange_params(stock_exchange: str, conn):
         ticks.append({'time': ticks_temp['time'][x], 'sec': ticks_temp['sec'][x]})
 
     return {'ticks': ticks, 'currencies': currencies}
+
+
+def get_key_and_secret(user, stock_exchange: str):
+    if stock_exchange == BotConn.Poloniex:
+        obj = PoloniexKey.objects.get(user=user.id)
+        return obj.key, obj.secret
+    elif stock_exchange == BotConn.Bitfinex: pass
+        # obj = BitfinexKey.objects.get(user=user.id)
+        # return obj.key, obj.secret
+    elif stock_exchange == BotConn.Bittrex: pass
+        # obj = Bittrex.objects.get(user=user.id)
+        # return obj.key, obj.secret

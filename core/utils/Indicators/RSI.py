@@ -1,10 +1,10 @@
-from core import utils
+from core.utils import candle_times
 from core.utils.BotConn import BotConn
 from core.utils.Indicators.MovingAverage import MovingAverage
 
 
 class RSI:
-    def __init__(self, conn: BotConn, candle_time: int, pair: str, time_stamp=utils.DAY):
+    def __init__(self, conn: BotConn, candle_time: int, pair: str, time_stamp=candle_times.DAY):
         self.conn = conn
         self.candle_time = candle_time
         self.pair = pair
@@ -63,5 +63,5 @@ class RSI:
         return ret_list
 
 
-# rsi = RSI(BotConn('poloniex'), utils.FIVE_MIN, 'USDT_BTC', utils.DAY)
+# rsi = RSI(BotConn('poloniex'), candle_timesFIVE_MIN, 'USDT_BTC', candle_timesDAY)
 # print(rsi.calculate_rsi_list(14))

@@ -1,9 +1,9 @@
-from core import utils
+from core.utils import candle_times
 from core.utils.BotConn import BotConn
 
 
 class MovingAverage:
-    def __init__(self, conn: BotConn, candle_time: int, pair: str, time_stamp=utils.DAY):
+    def __init__(self, conn: BotConn, candle_time: int, pair: str, time_stamp=candle_times.DAY):
         self.conn = conn
         self.candle_time = candle_time
         self.time_stamp = time_stamp

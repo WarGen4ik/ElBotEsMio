@@ -15,11 +15,11 @@ from bot import settings
 from core.models import PoloniexKey, Strategy
 from core.serializers import AuthTokenSerializer, UserSerializer, PoloniexKeySerializer, StrategySerializer, \
     StrategyListSerializer, AuthException
-from BotsConnections.poloniexConn import Poloniex, PoloniexError
-from core.utils import perform_indicators_to_str, perform_str_to_indicator, get_stock_exchange_params
+from core.utils import perform_indicators_to_str, perform_str_to_indicator, get_stock_exchange_params, \
+    get_key_and_secret
 from core.utils.Bot import bot_start
 from core.utils.BotConn import BotConn
-from core.utils.InputDataVerification import InputDataVerification
+from core.utils.InputDataVerification import InputDataVerification, VerifyException
 
 
 class CustomObtainAuthToken(APIView):
@@ -124,8 +124,22 @@ class CreateUserPoloniexKey(CreateAPIView):
 
 class BotStart(APIView):
     def post(self, request):
-        v = Value('b', True)
         data = request.data.copy()
+        key, secret = get_key_and_secret(request.user, data['stock_exchange'])
+        verify = InputDataVerification(data['stock_exchange'], key, secret)
+        try:
+            if 'depo_percent' in data:
+                verify.verify_all(currency=data['currency_1'],
+                                  depo_percent=data['depo_percent'],
+                                  pair='{}_{}'.format(data['currency_1'], data['currency_2']))
+            else:
+                verify.verify_all(currency=data['currency_1'],
+                                  depo=data['depo'],
+                                  pair='{}_{}'.format(data['currency_1'], data['currency_2']))
+        except VerifyException as ex:
+            return Response({'error': str(ex)}, status=status.HTTP_400_BAD_REQUEST)
+
+        v = Value('b', True)
         data['v'] = v
         data['user_id'] = request.user.id
         proc = Process(target=bot_start, args=(data,))
@@ -157,7 +171,8 @@ class BotStop(APIView):
         if request.user.id in settings.bots:
             if request.data['stock_exchange'] in settings.bots[request.user.id]:
                 if request.data['pair'] in settings.bots[request.user.id][request.data['stock_exchange']]:
-                    bot_settings = settings.bots[request.user.id][request.data['stock_exchange']].pop(request.data['pair'])
+                    bot_settings = settings.bots[request.user.id][request.data['stock_exchange']].pop(
+                        request.data['pair'])
                     bot_settings['stop'].value = False
                     return Response({}, status=status.HTTP_200_OK)
 
@@ -184,7 +199,7 @@ class BotCreate(CreateAPIView):
 class BotGetAll(ListAPIView):
     model = Strategy
     serializer_class = StrategyListSerializer
-    renderer_classes = (JSONRenderer, )
+    renderer_classes = (JSONRenderer,)
 
     def get_queryset(self):
         return Strategy.objects.filter(user=self.request.user, isStrategy=False)
@@ -193,7 +208,7 @@ class BotGetAll(ListAPIView):
 class StrategiesGetAll(ListAPIView):
     model = Strategy
     serializer_class = StrategyListSerializer
-    renderer_classes = (JSONRenderer, )
+    renderer_classes = (JSONRenderer,)
 
     def get_queryset(self):
         return Strategy.objects.filter(user=self.request.user, isStrategy=True)
@@ -213,6 +228,13 @@ class BotRetrieveUpdateDelete(RetrieveUpdateDestroyAPIView):
         return Response({"id": pk, "deleted": True}, status=status.HTTP_200_OK)
 
     def update(self, request, *args, **kwargs):
+        try:
+            InputDataVerification(request.data['stock_exchange']).verify_pair('{}_{}'.format(request.data['currency_1'],
+                                                                                            request.data['currency_2']))
+        except VerifyException as ex:
+            return Response({'message': str(ex)}, status=status.HTTP_400_BAD_REQUEST)
+        except KeyError:
+            pass
         request.data['user'] = request.user.id
         try:
             request.data['indicators'] = perform_indicators_to_str(request.data['indicators'])
@@ -245,7 +267,9 @@ class GetStockExchangeParams(APIView):
 
 
 class Get2FAQR(APIView):
-    def post(self, request):
+    permission_classes = (AllowAny, )
+
+    def get(self, request):
         base_32 = pyotp.random_base32()
         otp_path = pyotp.totp.TOTP(base_32).provisioning_uri(request.user.email, issuer_name="El bot es mio")
         return Response({'qr_code': otp_path, 'base_32': base_32}, status=status.HTTP_200_OK)
@@ -253,7 +277,7 @@ class Get2FAQR(APIView):
 
 class Enable2FA(APIView):
     def post(self, request):
-        auth = pyotp.totp.TOTP(settings.SECRET_KEY)
+        auth = pyotp.totp.TOTP(request.data['base_32'])
         if auth.verify(request.data['code']) and request.user.check_password(request.data['password']):
             request.user.profile.two_factor_auth = True
             request.user.profile.base_32 = request.data['base_32']

@@ -1,10 +1,10 @@
-from core import utils
+from core.utils import candle_times
 from core.utils.BotConn import BotConn
 from core.utils.Indicators.MovingAverage import MovingAverage
 
 
 class MACD:
-    def __init__(self, conn: BotConn, candle_time: int, pair: str, time_stamp=utils.DAY, length_1=26, length_2=12,
+    def __init__(self, conn: BotConn, candle_time: int, pair: str, time_stamp=candle_times.DAY, length_1=26, length_2=12,
                  length_3=9):
         self.conn = conn
         self.candle_time = candle_time

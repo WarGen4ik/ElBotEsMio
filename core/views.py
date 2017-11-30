@@ -1,10 +1,12 @@
+import pymongo
 from django.contrib.auth import get_user_model
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from multiprocessing import Value, Process
 from rest_framework import parsers, renderers, status
 from rest_framework.authtoken.models import Token
-from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveUpdateDestroyAPIView
+from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveUpdateDestroyAPIView, RetrieveAPIView, \
+    UpdateAPIView, RetrieveUpdateAPIView
 from rest_framework.permissions import AllowAny
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
@@ -16,7 +18,7 @@ from core.models import PoloniexKey, Strategy
 from core.serializers import AuthTokenSerializer, UserSerializer, PoloniexKeySerializer, StrategySerializer, \
     StrategyListSerializer, AuthException
 from core.utils import perform_indicators_to_str, perform_str_to_indicator, get_stock_exchange_params, \
-    get_key_and_secret
+    get_key_and_secret, get_conn
 from core.utils.Bot import bot_start
 from core.utils.BotConn import BotConn
 from core.utils.InputDataVerification import InputDataVerification, VerifyException
@@ -125,19 +127,20 @@ class CreateUserPoloniexKey(CreateAPIView):
 class BotStart(APIView):
     def post(self, request):
         data = request.data.copy()
-        key, secret = get_key_and_secret(request.user, data['stock_exchange'])
-        verify = InputDataVerification(data['stock_exchange'], key, secret)
-        try:
-            if 'depo_percent' in data:
-                verify.verify_all(currency=data['currency_1'],
-                                  depo_percent=data['depo_percent'],
-                                  pair='{}_{}'.format(data['currency_1'], data['currency_2']))
-            else:
-                verify.verify_all(currency=data['currency_1'],
-                                  depo=data['depo'],
-                                  pair='{}_{}'.format(data['currency_1'], data['currency_2']))
-        except VerifyException as ex:
-            return Response({'error': str(ex)}, status=status.HTTP_400_BAD_REQUEST)
+        data.pop('id')
+        # key, secret = get_key_and_secret(request.user, data['stock_exchange'])
+        # verify = InputDataVerification(data['stock_exchange'], key, secret)
+        # try:
+        #     if 'depo_percent' in data:
+        #         verify.verify_all(currency=data['currency_1'],
+        #                           depo_percent=data['depo_percent'],
+        #                           pair='{}_{}'.format(data['currency_1'], data['currency_2']))
+        #     else:
+        #         verify.verify_all(currency=data['currency_1'],
+        #                           depo=data['depo'],
+        #                           pair='{}_{}'.format(data['currency_1'], data['currency_2']))
+        # except VerifyException as ex:
+        #     return Response({'error': str(ex)}, status=status.HTTP_400_BAD_REQUEST)
 
         v = Value('b', True)
         data['v'] = v
@@ -161,7 +164,7 @@ class BotStart(APIView):
                 return Response({'msg': 'Bot is working now'}, status=status.HTTP_400_BAD_REQUEST)
         except KeyError:
             pass
-        settings.bots[request.user.id][request.data['stock_exchange']][pair] = {'stop': v, 'id': pid}
+        settings.bots[request.user.id][request.data['stock_exchange']][pair] = {'stop': v, 'pid': pid, 'id': request.data['id']}
 
         return Response({}, status=status.HTTP_200_OK)
 
@@ -238,8 +241,8 @@ class BotRetrieveUpdateDelete(RetrieveUpdateDestroyAPIView):
         request.data['user'] = request.user.id
         try:
             request.data['indicators'] = perform_indicators_to_str(request.data['indicators'])
-        except KeyError:
-            pass
+        except KeyError as ex:
+            print(ex)
 
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data)
@@ -294,3 +297,31 @@ class Disable2FA(APIView):
             request.user.profile.save()
             return Response({"status": True}, status=status.HTTP_200_OK)
         return Response({"status": False}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class BotGetLogs(RetrieveAPIView):
+    model = Strategy
+    queryset = Strategy.objects.all()
+    serializer_class = StrategySerializer
+    renderer_classes = (JSONRenderer,)
+    lookup_field = 'pk'
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        db = get_conn('mongodb://root:root@localhost:27017/elbotesmio')
+        data = db.logs.find({'pair': '{}_{}'.format(serializer.data['currency_1'], serializer.data['currency_2']),
+                             'stock_exchange': serializer.data['stock_exchange'],
+                             'user_id': request.user.id}).sort([("date", pymongo.DESCENDING), ])
+        ret = list()
+        for i in data:
+            i.pop('_id')
+            ret.append(i)
+        return Response(ret, status=status.HTTP_200_OK)
+
+
+class RetrieveUpdateUser(RetrieveUpdateAPIView):
+        queryset = get_user_model().objects.all()
+        serializer_class = UserSerializer
+        renderer_classes = (JSONRenderer,)
+        lookup_field = 'pk'
